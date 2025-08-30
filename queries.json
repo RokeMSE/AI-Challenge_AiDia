@@ -1,0 +1,71 @@
+[
+    {
+        "query_id": "p1-1-kis",
+        "task_type": "kis",
+        "description": "Cảnh quay bằng flycam một cây cầu ở TP Hồ Chí Minh, tiếp theo đến cảnh quay tòa nhà Bitexco. Một vài cảnh sau đó chuyển qua quay hình ảnh hồ gươm tại Hà Nội."
+    },
+    {
+        "query_id": "p1-3-qa",
+        "task_type": "qa",
+        "description": "Đây là phần giới thiệu phần thưởng cho một cuộc thi được thiết kế với nền xanh, chữ trắng phủ lên video giới thiệu cuộc thi. Tổng có 18 giải thưởng chính cho cuộc thi.",
+        "sub_queries": [
+            {
+                "question": "Hỏi tổng giá trị của các giải thưởng chính là bao nhiêu?"
+            }
+        ]
+    },
+    {
+        "query_id": "p1-4-qa",
+        "task_type": "qa",
+        "description": "Một bác sĩ tóc bạc, đeo kính đang trả lời phỏng vấn. Sau đó là cảnh vị bác sĩ này đang nói chuyện với một bệnh nhân nữ quay lưng lại với camera mặc áo đen. Trên bàn có 2 cây bút. Bên trái áo của bác sĩ có thêu dòng chữ màu đỏ gồm tên, học hàm, học vị của vị bác sĩ này.",
+        "sub_queries": [
+            {
+                "question": "Hỏi họ và tên đầy đủ của bác sĩ là gì?"
+            }
+        ]
+    },
+    {
+        "query_id": "p1-5-trake",
+        "task_type": "trake",
+        "description": "Một người đầu bếp đang chuẩn bị cá để chiên.",
+        "sub_queries": [
+            {
+                "step": "E1",
+                "action": "Người đầu bếp cho cá vào một tô màu trắng.",
+                "request": "Hãy lấy khoảnh khắc con cá cuối cùng rớt khỏi dĩa"
+            },
+            {
+                "step": "E2",
+                "action": "Người đầu bếp đổ bột vào một tô cá để chiên.",
+                "request": "Hãy lấy khoảnh khắc đầu tiên mà chiếc đũa của người đầu bếp chạm vào cá để trộn bột."
+            },
+            {
+                "step": "E3",
+                "action": "Tiếp theo, người đầu bếp này dùng đũa để kiểm tra độ nóng của dầu.",
+                "request": "Hãy lấy khoảnh khắc đầu tiên chiếc đũa được nhấc ra khỏi dầu."
+            }
+        ]
+    },
+    {
+        "query_id": "p1-6-trake",
+        "task_type": "trake",
+        "description": "Một người đang cắt và nướng bánh mì, sau đó áp chảo thịt.",
+        "sub_queries": [
+            {
+                "step": "E1",
+                "action": "Một người đang cắt đôi ổ bánh mì có rắc mè rồi đem nướng trên chảo.",
+                "request": "Hãy lấy khoảnh khắc chiếc dao cắt qua hoàn toàn chiếc bánh."
+            },
+            {
+                "step": "E2",
+                "action": "Sau đó người này rắc bột lên những miếng thịt, trong quá trình này người đầu bếp lật những miếng thịt để rắc bột đều hai mặt.",
+                "request": "Hãy lấy khoảnh khắc đầu tiên người đầu bếp này buông tay khỏi miếng thịt sau khi lật miếng thịt đầu tiên."
+            },
+            {
+                "step": "E3",
+                "action": "Các miếng thịt sau đó được đem đi áp chảo cùng với bơ (3 ngang 1 dọc theo chiều của camera).",
+                "request": "Hãy lấy khoảnh khắc đầu tiên người đầu bếp cầm vào chảo để nhấc lên đảo bơ đều xung quanh."
+            }
+        ]
+    }
+]

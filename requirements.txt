@@ -1,0 +1,12 @@
+opencv-python
+torch
+torchvision
+ftfy
+regex
+tqdm
+git+https://github.com/openai/CLIP.git
+faiss-cpu
+sentence_transformers
+numpy
+clip
+pandas
