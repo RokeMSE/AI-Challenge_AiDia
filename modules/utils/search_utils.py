@@ -93,3 +93,31 @@ def search_top_k(query_embedding: np.ndarray, index: faiss.Index, k: int = 5):
     """
     D, I = index.search(query_embedding.reshape(1, -1).astype('float32'), k)
     return D, I
+
+
+def find_best_frame_in_video(text_query, video_id, embeddings_folder, model):
+    """
+    Tìm frame tốt nhất dựa trên text_query
+    """
+    video_embeddings_path = os.path.join(embeddings_folder, video_id)
+    if not os.path.isdir(video_embeddings_path):
+        return None, -1
+
+    # Load toàn bộ frame
+    frame_files = sorted([f for f in os.listdir(video_embeddings_path) if f.endswith('.npy')])
+    video_frame_embeddings = np.array([np.load(os.path.join(video_embeddings_path, f)) for f in frame_files])
+    
+    if len(video_frame_embeddings) == 0:
+        return None, -1
+
+    # Text embedding
+    query_embedding = model.get_text_features([text_query])
+    
+    # Xài cosine similarity (nhân)
+    similarities = np.dot(video_frame_embeddings, query_embedding.T).flatten() # flatten(): chuyển đổi thành 1D array
+
+    # Lấy frame đẹp nhất (match vs query nhất)
+    best_frame_idx = np.argmax(similarities)
+    best_frame_name = os.path.splitext(frame_files[best_frame_idx])[0]
+    
+    return best_frame_name, similarities[best_frame_idx]

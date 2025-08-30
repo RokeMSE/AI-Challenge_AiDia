@@ -6,7 +6,7 @@ import torch
 import pandas as pd
 
 from modules.model.model import Clip4ClipHF # from modules/model/model.py
-from modules.utils.search_utils import build_faiss_index, search_top_k, create_index_to_path_mapping
+from modules.utils.search_utils import *
 
 if __name__ == "__main__":
     embeddings_folder = "data/embeddings"
@@ -60,5 +60,29 @@ if __name__ == "__main__":
             elif task_type == "qa":
                 pass
 
-            elif task_type == "track":
-                pass
+            elif task_type == "trake":
+                description = query.get("description")
+                
+                # Stage 1: Video Retrieval (Simplified for this example)
+                # NOTE: For the real contest, you should build and search a video-level FAISS index.
+                # Here, we'll just assume a method to get the most likely video_id.
+                # Let's pretend 'L10_V010' is our best guess from the video-level search.
+                candidate_video_id = "L10_V010" # Replace with actual video search result
+                print(f"  - Best candidate video from description: {candidate_video_id}")
+
+                # Stage 2: Localize frame for each step
+                predicted_frames = []
+                for sub_query in query.get("sub_queries"):
+                    step_request = sub_query.get("request")
+                    print(f"    - Finding frame for request: '{step_request}'")
+                    
+                    best_frame, score = find_best_frame_in_video(step_request, candidate_video_id, embeddings_folder, model)
+                    if best_frame:
+                        predicted_frames.append(best_frame)
+                        print(f"      -> Found frame: {best_frame} (Score: {score:.4f})")
+                    else:
+                        predicted_frames.append("0") # Placeholder if frame not found
+                        
+                # Compile and print the final submission string
+                submission_string = f"{candidate_video_id}, " + ", ".join(predicted_frames)
+                print(f"\n  - Final TRAKE Submission: {submission_string}")
