@@ -1,4 +1,3 @@
-# modules/utils/search_utils.py
 import faiss
 import torch
 import os
