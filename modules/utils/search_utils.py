@@ -1,122 +1,85 @@
+# modules/utils/search_utils.py
 import faiss
 import torch
 import os
 import clip
 import numpy as np
-from sentence_transformers import SentenceTransformer
 import json
-import pandas as pd
-
-# Các hàm đọc dữ liệu đã thêm vào
-def load_video_metadata(metadata_path):
-    """Đọc file metadata của video."""
-    if not os.path.exists(metadata_path):
-        return None
-    with open(metadata_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-def load_keyframes_map(map_path):
-    """Đọc file ánh xạ keyframes."""
-    if not os.path.exists(map_path):
-        return None
-    return pd.read_csv(map_path)
-
-def load_object_detections(object_path):
-    """Đọc file phát hiện đối tượng."""
-    if not os.path.exists(object_path):
-        return None
-    with open(object_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
 
 def create_index_to_path_mapping(embeddings_folder):
     """
-    Tạo một từ điển ánh xạ từ chỉ mục của vector đặc trưng
-    đến đường dẫn file .npy và ID video.
+    Recursively creates a map from a flat FAISS index to the original file path.
     """
     mapping = {}
     idx = 0
-    # Đảm bảo các thư mục con được sắp xếp để có thứ tự nhất quán
-    for video_id in sorted(os.listdir(embeddings_folder)):
-        video_path = os.path.join(embeddings_folder, video_id)
-        if os.path.isdir(video_path):
-            # Sắp xếp các file .npy trong mỗi thư mục
-            for frame_file in sorted(os.listdir(video_path)):
-                if frame_file.endswith(".npy"):
-                    frame_name_without_ext = os.path.splitext(frame_file)[0]
-                    mapping[idx] = {
-                        "video_id": video_id,
-                        "frame_npy_path": os.path.join(video_path, frame_file),
-                        "frame_name": frame_name_without_ext
-                    }
-                    idx += 1
+    # Walk through all subdirectories
+    for root, _, files in os.walk(embeddings_folder):
+        # Sort files to ensure consistent order
+        for frame_file in sorted(files):
+            if frame_file.endswith(".npy"):
+                video_id = os.path.basename(root)
+                frame_name_without_ext = os.path.splitext(frame_file)[0]
+                mapping[idx] = {
+                    "video_id": video_id,
+                    "frame_npy_path": os.path.join(root, frame_file),
+                    "frame_name": frame_name_without_ext
+                }
+                idx += 1
     return mapping
-
-def process_query_text(query_text: str, model, device):
-    """
-    Tạo vector đặc trưng từ câu truy vấn văn bản bằng mô hình CLIP.
-    """
-    text_tokens = clip.tokenize([query_text]).to(device)
-    with torch.no_grad():
-        text_features = model.encode_text(text_tokens)
-    text_features /= text_features.norm(dim=-1, keepdim=True)
-    return text_features.cpu().numpy().astype('float32')
 
 def build_faiss_index(embeddings_folder: str):
     """
-    Tải các vector đặc trưng và xây dựng chỉ mục FAISS.
+    Recursively loads all embeddings and builds a FAISS index.
     """
     embeddings_list = []
-    # Lặp qua các file .npy trong thư mục
-    for filename in sorted(os.listdir(embeddings_folder)):
-        if filename.endswith(".npy"):
-            file_path = os.path.join(embeddings_folder, filename)
-            embedding = np.load(file_path).astype('float32') # FAISS yêu cầu float32
-            embeddings_list.append(embedding)
+    print("Scanning for all .npy embedding files...")
+    # Walk through all subdirectories
+    for root, _, files in os.walk(embeddings_folder):
+        # Sort files to ensure consistent order
+        for filename in sorted(files):
+            if filename.endswith(".npy"):
+                file_path = os.path.join(root, filename)
+                embedding = np.load(file_path).astype('float32')
+                embeddings_list.append(embedding)
 
     if not embeddings_list:
-        print("Không tìm thấy file .npy nào.")
-        return None, None
+        print("No .npy files found in the embeddings folder.")
+        return None
 
-    # Gộp tất cả các vector lại thành một mảng NumPy
     embeddings_matrix = np.vstack(embeddings_list)
-
     d = embeddings_matrix.shape[1]
     index = faiss.IndexFlatL2(d)
     index.add(embeddings_matrix)
     
-    print(f"Đã xây dựng chỉ mục FAISS với {index.ntotal} vector.")
-    return index, embeddings_matrix
+    print(f"FAISS index built successfully with {index.ntotal} total vectors.")
+    return index
 
 def search_top_k(query_embedding: np.ndarray, index: faiss.Index, k: int = 5):
     """
-    Tìm kiếm k vector gần nhất với vector truy vấn.
+    Searches the FAISS index for the top k nearest neighbors.
     """
     D, I = index.search(query_embedding.reshape(1, -1).astype('float32'), k)
     return D, I
 
-
 def find_best_frame_in_video(text_query, video_id, embeddings_folder, model):
     """
-    Tìm frame tốt nhất dựa trên text_query
+    Finds the single best frame in a specific video for a given text query.
     """
     video_embeddings_path = os.path.join(embeddings_folder, video_id)
     if not os.path.isdir(video_embeddings_path):
         return None, -1
 
-    # Load toàn bộ frame
     frame_files = sorted([f for f in os.listdir(video_embeddings_path) if f.endswith('.npy')])
+    if not frame_files:
+        return None, -1
+        
     video_frame_embeddings = np.array([np.load(os.path.join(video_embeddings_path, f)) for f in frame_files])
     
-    if len(video_frame_embeddings) == 0:
-        return None, -1
-
-    # Text embedding
     query_embedding = model.get_text_features([text_query])
     
-    # Xài cosine similarity (nhân)
-    similarities = np.dot(video_frame_embeddings, query_embedding.T).flatten() # flatten(): chuyển đổi thành 1D array
-
-    # Lấy frame đẹp nhất (match vs query nhất)
+    # Cosine similarity is the dot product of normalized vectors
+    similarities = np.dot(video_frame_embeddings, query_embedding.T).flatten()
+    
     best_frame_idx = np.argmax(similarities)
     best_frame_name = os.path.splitext(frame_files[best_frame_idx])[0]
     
