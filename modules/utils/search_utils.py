@@ -1,6 +1,7 @@
 import faiss
 import torch
 import os
+import re
 import clip
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -30,25 +31,37 @@ def load_object_detections(object_path):
 
 def create_index_to_path_mapping(embeddings_folder):
     """
-    Tạo một từ điển ánh xạ từ chỉ mục của vector đặc trưng
-    đến đường dẫn file .npy và ID video.
+    Tạo mapping index -> thông tin (file .npy, row trong file).
+    Đảm bảo cùng thứ tự với build_faiss_index.
     """
     mapping = {}
     idx = 0
-    # Đảm bảo các thư mục con được sắp xếp để có thứ tự nhất quán
-    for video_id in sorted(os.listdir(embeddings_folder)):
-        video_path = os.path.join(embeddings_folder, video_id)
-        if os.path.isdir(video_path):
-            # Sắp xếp các file .npy trong mỗi thư mục
-            for frame_file in sorted(os.listdir(video_path)):
-                if frame_file.endswith(".npy"):
-                    frame_name_without_ext = os.path.splitext(frame_file)[0]
+    for file in sorted(os.listdir(embeddings_folder)):
+        if file.endswith(".npy"):
+            file_path = os.path.join(embeddings_folder, file)
+            arr = np.load(file_path)
+
+            # Nếu chỉ có 1 vector (1D)
+            if arr.ndim == 1:
+                mapping[idx] = {
+                    "frame_npy_path": file_path,
+                    "file_row": 0,
+                    "frame_name": os.path.splitext(file)[0]
+                }
+                idx += 1
+
+            # Nếu nhiều vector (2D)
+            elif arr.ndim == 2:
+                for r in range(arr.shape[0]):
                     mapping[idx] = {
-                        "video_id": video_id,
-                        "frame_npy_path": os.path.join(video_path, frame_file),
-                        "frame_name": frame_name_without_ext
+                        "frame_npy_path": file_path,
+                        "file_row": r,
+                        "frame_name": f"{os.path.splitext(file)[0]}_row{r}"
                     }
                     idx += 1
+
+            else:
+                print(f"⚠️ Cảnh báo: {file_path} có shape {arr.shape}, bỏ qua.")
     return mapping
 
 def process_query_text(query_text: str, model, device):
@@ -93,3 +106,30 @@ def search_top_k(query_embedding: np.ndarray, index: faiss.Index, k: int = 5):
     """
     D, I = index.search(query_embedding.reshape(1, -1).astype('float32'), k)
     return D, I
+
+def preprocess_query_text(description: str) -> list[str]:
+    """
+    Tách query dài thành các câu ngắn hơn (<=77 tokens).
+    Ở đây dùng rule-based: tách theo dấu chấm, phẩy.
+    """
+    candidates = [q.strip() for q in re.split(r"[.,;]", description) if q.strip()]
+    if not candidates:
+        candidates = [description]
+    return candidates
+
+
+def encode_queries(description, model, device):
+    """
+    Encode query:
+    - Nếu description là string dài => tự động tách thành sub-queries.
+    - Nếu description là list => encode từng câu rồi lấy mean.
+    """
+    if isinstance(description, str):
+        sub_queries = preprocess_query_text(description)
+    elif isinstance(description, list):
+        sub_queries = description
+    else:
+        raise ValueError("description phải là string hoặc list các string.")
+
+    embeddings = [process_query_text(sub_q, model, device) for sub_q in sub_queries]
+    return np.mean(embeddings, axis=0)

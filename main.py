@@ -4,7 +4,7 @@ import json
 import torch
 import clip
 import pandas as pd
-from modules.utils.search_utils import build_faiss_index, search_top_k, load_video_metadata, load_keyframes_map, load_object_detections, create_index_to_path_mapping, process_query_text
+from modules.utils.search_utils import encode_queries, build_faiss_index, search_top_k, load_video_metadata, load_keyframes_map, load_object_detections, create_index_to_path_mapping, process_query_text
 
 if __name__ == "__main__":
     embeddings_folder = "data/embeddings"
@@ -42,33 +42,24 @@ if __name__ == "__main__":
             
             if task_type == "kis":
                 description = query.get("description")
-                if query_id == "p1-1-kis":
-                    sub_queries = [
-                        "Cảnh quay bằng flycam một cây cầu ở TP Hồ Chí Minh.",
-                        "cảnh quay tòa nhà Bitexco.",
-                        "quay hình ảnh hồ gươm tại Hà Nội."
-                    ]
-                else:
-                    sub_queries = [description]
-
-                all_query_embeddings = [process_query_text(sub_q, model, device) for sub_q in sub_queries]
-                query_embedding = np.mean(all_query_embeddings, axis=0)
+                query_embedding = encode_queries(description, model, device)
                 distances, indices = search_top_k(query_embedding, faiss_index, k=5)
+
+                print(indices)
 
                 print("Kết quả tìm kiếm cho Textual-KVS:")
                 for i, idx in enumerate(indices[0]):
                     result_info = index_to_path_mapping.get(idx)
                     print(result_info)
-                    if result_info:
-                        print("Khôi")
-                        video_id = result_info["video_id"]
-                        frame_name = result_info["frame_name"]
-                        frame_path = os.path.join(frames_folder, video_id, f"{frame_name}.jpg")
-                        distance = distances[0][i]
-                        print(f"  - Top {i+1}: Video '{video_id}', Frame: '{frame_name}'")
-                        print(f"    Đường dẫn: {frame_path}")
-                        print(f"    Khoảng cách: {distance:.4f}")
-            
+                    #if result_info:
+                        #video_id = result_info["video_id"]
+                        #frame_name = result_info["frame_name"]
+                        #frame_path = os.path.join(frames_folder, video_id, f"{frame_name}.jpg")
+                        #distance = distances[0][i]
+                        #print(f"  - Top {i+1}: Video '{video_id}', Frame: '{frame_name}'")
+                        #print(f"    Đường dẫn: {frame_path}")
+                        #print(f"    Khoảng cách: {distance:.4f}")
+
             # elif task_type == "qa":
             #     # Ví dụ xử lý cho QA
             #     description = query.get("description")
