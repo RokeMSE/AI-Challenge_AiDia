@@ -64,9 +64,6 @@ if __name__ == "__main__":
                 description = query.get("description")
                 
                 # Stage 1: Video Retrieval (Simplified for this example)
-                # NOTE: For the real contest, you should build and search a video-level FAISS index.
-                # Here, we'll just assume a method to get the most likely video_id.
-                # Let's pretend 'L10_V010' is our best guess from the video-level search.
                 candidate_video_id = "L10_V010" # Replace with actual video search result
                 print(f"  - Best candidate video from description: {candidate_video_id}")
 
