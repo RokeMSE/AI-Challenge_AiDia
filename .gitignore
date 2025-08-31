@@ -1,4 +1,4 @@
 .venv
 .DS_Store
-data
+data/
 __pycache__

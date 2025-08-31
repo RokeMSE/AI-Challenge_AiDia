@@ -1,149 +1,85 @@
 import faiss
 import torch
 import os
-import re
 import clip
 import numpy as np
-from sentence_transformers import SentenceTransformer
 import json
-import pandas as pd
-
-# Các hàm đọc dữ liệu đã thêm vào
-def load_video_metadata(metadata_path):
-    """Đọc file metadata của video."""
-    if not os.path.exists(metadata_path):
-        return None
-    with open(metadata_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-def load_keyframes_map(map_path):
-    """Đọc file ánh xạ keyframes."""
-    if not os.path.exists(map_path):
-        return None
-    return pd.read_csv(map_path)
-
-def load_object_detections(object_path):
-    """Đọc file phát hiện đối tượng."""
-    if not os.path.exists(object_path):
-        return None
-    with open(object_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
 
 def create_index_to_path_mapping(embeddings_folder):
     """
-    Tạo mapping index -> thông tin (file .npy, row trong file).
-    Đảm bảo cùng thứ tự với build_faiss_index.
+    Recursively creates a map from a flat FAISS index to the original file path.
     """
     mapping = {}
     idx = 0
-    for file in sorted(os.listdir(embeddings_folder)):
-        if file.endswith(".npy"):
-            file_path = os.path.join(embeddings_folder, file)
-            arr = np.load(file_path)
-
-            # Nếu chỉ có 1 vector (1D)
-            if arr.ndim == 1:
+    # Walk through all subdirectories
+    for root, _, files in os.walk(embeddings_folder):
+        # Sort files to ensure consistent order
+        for frame_file in sorted(files):
+            if frame_file.endswith(".npy"):
+                video_id = os.path.basename(root)
+                frame_name_without_ext = os.path.splitext(frame_file)[0]
                 mapping[idx] = {
-                    "frame_npy_path": file_path,
-                    "file_row": 0,
-                    "frame_name": os.path.splitext(file)[0]
+                    "video_id": video_id,
+                    "frame_npy_path": os.path.join(root, frame_file),
+                    "frame_name": frame_name_without_ext
                 }
                 idx += 1
-
-            # Nếu nhiều vector (2D)
-            elif arr.ndim == 2:
-                for r in range(arr.shape[0]):
-                    mapping[idx] = {
-                        "frame_npy_path": file_path,
-                        "file_row": r,
-                        "frame_name": f"{os.path.splitext(file)[0]}_row{r}"
-                    }
-                    idx += 1
-
-            else:
-                print(f"⚠️ Cảnh báo: {file_path} có shape {arr.shape}, bỏ qua.")
     return mapping
-
-def process_query_text(query_text: str, model, device):
-    """
-    Tạo vector đặc trưng từ câu truy vấn văn bản bằng mô hình CLIP.
-    """
-    text_tokens = clip.tokenize([query_text]).to(device)
-    with torch.no_grad():
-        text_features = model.encode_text(text_tokens)
-    text_features /= text_features.norm(dim=-1, keepdim=True)
-    return text_features.cpu().numpy().astype('float32')
 
 def build_faiss_index(embeddings_folder: str):
     """
-    Tải các vector đặc trưng từ tất cả thư mục con và xây dựng chỉ mục FAISS.
-    Trả về:
-        - index: FAISS index
-        - embeddings_matrix: Ma trận vector
-        - id_mapping: Danh sách mapping từ index -> file gốc
+    Recursively loads all embeddings and builds a FAISS index.
     """
     embeddings_list = []
-    id_mapping = []
-
-    # Duyệt qua toàn bộ thư mục con
+    print("Scanning for all .npy embedding files...")
+    # Walk through all subdirectories
     for root, _, files in os.walk(embeddings_folder):
+        # Sort files to ensure consistent order
         for filename in sorted(files):
             if filename.endswith(".npy"):
                 file_path = os.path.join(root, filename)
                 embedding = np.load(file_path).astype('float32')
-
-                # Nếu vector 1D thì reshape thành (1, d)
-                if embedding.ndim == 1:
-                    embedding = embedding.reshape(1, -1)
-
                 embeddings_list.append(embedding)
-                id_mapping.extend([file_path] * embedding.shape[0])
 
     if not embeddings_list:
-        print("Không tìm thấy file .npy nào.")
-        return None, None, None
+        print("No .npy files found in the embeddings folder.")
+        return None
 
-    # Gộp tất cả embeddings thành ma trận
     embeddings_matrix = np.vstack(embeddings_list)
-
-    # Tạo FAISS index
     d = embeddings_matrix.shape[1]
     index = faiss.IndexFlatL2(d)
     index.add(embeddings_matrix)
-
-    print(f"Đã xây dựng chỉ mục FAISS với {index.ntotal} vector.")
-    return index, embeddings_matrix, id_mapping
+    
+    print(f"FAISS index built successfully with {index.ntotal} total vectors.")
+    return index
 
 def search_top_k(query_embedding: np.ndarray, index: faiss.Index, k: int = 5):
     """
-    Tìm kiếm k vector gần nhất với vector truy vấn.
+    Searches the FAISS index for the top k nearest neighbors.
     """
     D, I = index.search(query_embedding.reshape(1, -1).astype('float32'), k)
     return D, I
 
-def preprocess_query_text(description: str) -> list[str]:
+def find_best_frame_in_video(text_query, video_id, embeddings_folder, model):
     """
-    Tách query dài thành các câu ngắn hơn (<=77 tokens).
-    Ở đây dùng rule-based: tách theo dấu chấm, phẩy.
+    Finds the single best frame in a specific video for a given text query.
     """
-    candidates = [q.strip() for q in re.split(r"[.,;]", description) if q.strip()]
-    if not candidates:
-        candidates = [description]
-    return candidates
+    video_embeddings_path = os.path.join(embeddings_folder, video_id)
+    if not os.path.isdir(video_embeddings_path):
+        return None, -1
 
-
-def encode_queries(description, model, device):
-    """
-    Encode query:
-    - Nếu description là string dài => tự động tách thành sub-queries.
-    - Nếu description là list => encode từng câu rồi lấy mean.
-    """
-    if isinstance(description, str):
-        sub_queries = preprocess_query_text(description)
-    elif isinstance(description, list):
-        sub_queries = description
-    else:
-        raise ValueError("description phải là string hoặc list các string.")
-
-    embeddings = [process_query_text(sub_q, model, device) for sub_q in sub_queries]
-    return np.mean(embeddings, axis=0)
+    frame_files = sorted([f for f in os.listdir(video_embeddings_path) if f.endswith('.npy')])
+    if not frame_files:
+        return None, -1
+        
+    video_frame_embeddings = np.array([np.load(os.path.join(video_embeddings_path, f)) for f in frame_files])
+    
+    query_embedding = model.get_text_features([text_query])
+    
+    # Cosine similarity is the dot product of normalized vectors
+    similarities = np.dot(video_frame_embeddings, query_embedding.T).flatten()
+    
+    best_frame_idx = np.argmax(similarities)
+    best_frame_name = os.path.splitext(frame_files[best_frame_idx])[0]
+    
+    return best_frame_name, similarities[best_frame_idx]
