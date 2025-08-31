@@ -20,6 +20,7 @@ services:
       PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
       DEFAULT_VECTORIZER_MODULE: 'none'
       CLUSTER_HOSTNAME: 'node1'
+      ENABLE_MODULES: 'text2vec-cohere,text2vec-huggingface,text2vec-openai'
 
 volumes:
   weaviate_data:

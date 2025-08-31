@@ -3,6 +3,7 @@ import weaviate.classes.config as wvc
 import numpy as np
 import os
 import atexit
+from tqdm import tqdm
 
 from dataclasses import dataclass
 
@@ -21,8 +22,8 @@ class WeaviateRepository:
     atexit.register(self.__client.close)
 
     self.__create_weaviate_collection()
-
-  def __create_weaviate_collection(self):
+  
+  def __create_weaviate_collection(self) -> None:
     """
     Creates the data schema in Weaviate. This tells Weaviate what kind
     of data and properties to expect. It will not overwrite an existing schema.
@@ -35,8 +36,7 @@ class WeaviateRepository:
     
     self.__client.collections.create(
       name=self._CLASS_NAME,
-      # Vectorizer is defined in a configuration object
-      vectorizer_config=wvc.Configure.Vectorizer.none(),
+      vectorizer_config=wvc.Configure.Vectorizer.none(), # no vectorizer
       properties=[
         wvc.Property(
           name="clip_id",
@@ -57,19 +57,14 @@ class WeaviateRepository:
     )
     print("Collection created successfully.")
 
-  def upload_from_npy(self, clip_id: int, clip_name: str, data_path: str, batch_size: int = 100):
+  def upload_from_npy(self, clip_id: int, clip_name: str, data_path: str, batch_size: int = 100) -> None:
     print("Processing clip:", clip_name)
 
     # check existence
     if not os.path.exists(data_path):
       print(f"\tWarning: The directory {data_path} does not exist.")
       return
-    
-    # get list of .npy file names
-    file_names = [f for f in os.listdir(data_path) if f.endswith('.npy')]
-    if not file_names:
-      print(f"\tWarning: No .npy files found in {data_path}. Skipping.")
-      return
+
     data_properties = {
       "clip_id": clip_id,
       "clip_name": clip_name
@@ -78,36 +73,33 @@ class WeaviateRepository:
     frames = self.__client.collections.get(self._CLASS_NAME)
 
     with frames.batch.fixed_size(batch_size=batch_size) as batch:
-      for file_name in file_names:
-        clip_path = os.path.join(data_path, file_name)
-        try:
-          vectors = np.load(clip_path)
-        except Exception as e:
-          print(f"\tError loading {clip_path}: {e}. Skipping.")
-          continue
-
-        frame_id_str = file_name.split('.')[0]
-        
+      clip_path = os.path.join(data_path)
+      try:
+        vectors = np.load(clip_path)
+      except Exception as e:
+        print(f"\tError loading {clip_path}: {e}. Skipping.")
+      
+      for frame_id, vector in enumerate(tqdm(vectors, f"Upload clip {clip_name}")):        
         # Create a copy of the properties and add the specific frame_index
         current_properties = data_properties.copy()
-        current_properties["frame_index"] = int(frame_id_str)
+        current_properties["frame_index"] = int(frame_id)
         
         # The new method is `add_object`, and the data is passed to `properties`
         batch.add_object(
           properties=current_properties,
-          vector=vectors[0].tolist()
+          vector=vector.tolist()
         )
     
     print("Finished processing clip:", clip_name)
   
-  def upload_from_folder(self, data_root_path: str, batch_size: int = 100):
-    all_clips = [d for d in os.listdir(DATA_ROOT) if os.path.isdir(os.path.join(DATA_ROOT, d))]
-    
-    id = 1
-    for clip_name in all_clips:
-      video_data_path = os.path.join(DATA_ROOT, clip_name)
-      repos.upload_from_npy(data_path=video_data_path, clip_id=id, clip_name=clip_name, batch_size=100)
-      id += 1
+  def upload_from_folder(self, data_root_path: str, batch_size: int = 100) -> None:
+    all_clips = [d for d in os.listdir(data_root_path)]
+
+    for id, clip_name in enumerate(all_clips):
+      video_data_path = os.path.join(data_root_path, clip_name)
+      # print(video_data_path)
+      self.upload_from_npy(data_path=video_data_path, clip_id=id, clip_name=clip_name, batch_size=100)
+
     print("\nAll videos have been processed.")
 
   def __format_query_results(self, results) -> list[QueryResult]:
@@ -125,7 +117,7 @@ class WeaviateRepository:
     
     return formatted_results
   
-  def query_by_vector(self, vector: list[int], k: int = 3):
+  def query_by_vector(self, vector: list[int], k: int = 3) -> list[QueryResult]:
     my_collection = self.__client.collections.get(self._CLASS_NAME)
     response = my_collection.query.near_vector(
       near_vector=vector,
@@ -133,10 +125,10 @@ class WeaviateRepository:
     )
     return self.__format_query_results(response)
   
-  def query_by_text(self, text: str, k: int = 3):
+  def query_by_text(self, text: str, k: int = 3) -> list[QueryResult]:
     my_collection = self.__client.collections.get(self._CLASS_NAME)
     response = my_collection.query.near_text(
-      near_text=text,
+      query=text,
       limit=k
     )
     return self.__format_query_results(response)
