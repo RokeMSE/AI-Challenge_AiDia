@@ -24,7 +24,7 @@ except Exception as e:
 
 # test    
 DATA_ROOT = "/home/ketamean/Documents/Y3/AIC/AI-Challenge_AiDia/data/embeddings"
-repos.upload_from_folder(DATA_ROOT)
+repos.upload_from_folder(DATA_ROOT, batch_size=50)
 
 res = repos.query_by_vector(np.load(os.path.join(DATA_ROOT, "L21_V002", '023.npy'))[0].tolist(), k=5)
 print(res)
