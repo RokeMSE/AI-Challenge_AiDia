@@ -76,29 +76,43 @@ def process_query_text(query_text: str, model, device):
 
 def build_faiss_index(embeddings_folder: str):
     """
-    Tải các vector đặc trưng và xây dựng chỉ mục FAISS.
+    Tải các vector đặc trưng từ tất cả thư mục con và xây dựng chỉ mục FAISS.
+    Trả về:
+        - index: FAISS index
+        - embeddings_matrix: Ma trận vector
+        - id_mapping: Danh sách mapping từ index -> file gốc
     """
     embeddings_list = []
-    # Lặp qua các file .npy trong thư mục
-    for filename in sorted(os.listdir(embeddings_folder)):
-        if filename.endswith(".npy"):
-            file_path = os.path.join(embeddings_folder, filename)
-            embedding = np.load(file_path).astype('float32') # FAISS yêu cầu float32
-            embeddings_list.append(embedding)
+    id_mapping = []
+
+    # Duyệt qua toàn bộ thư mục con
+    for root, _, files in os.walk(embeddings_folder):
+        for filename in sorted(files):
+            if filename.endswith(".npy"):
+                file_path = os.path.join(root, filename)
+                embedding = np.load(file_path).astype('float32')
+
+                # Nếu vector 1D thì reshape thành (1, d)
+                if embedding.ndim == 1:
+                    embedding = embedding.reshape(1, -1)
+
+                embeddings_list.append(embedding)
+                id_mapping.extend([file_path] * embedding.shape[0])
 
     if not embeddings_list:
         print("Không tìm thấy file .npy nào.")
-        return None, None
+        return None, None, None
 
-    # Gộp tất cả các vector lại thành một mảng NumPy
+    # Gộp tất cả embeddings thành ma trận
     embeddings_matrix = np.vstack(embeddings_list)
 
+    # Tạo FAISS index
     d = embeddings_matrix.shape[1]
     index = faiss.IndexFlatL2(d)
     index.add(embeddings_matrix)
-    
+
     print(f"Đã xây dựng chỉ mục FAISS với {index.ntotal} vector.")
-    return index, embeddings_matrix
+    return index, embeddings_matrix, id_mapping
 
 def search_top_k(query_embedding: np.ndarray, index: faiss.Index, k: int = 5):
     """

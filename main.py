@@ -9,21 +9,21 @@ from modules.utils.search_utils import encode_queries, build_faiss_index, search
 if __name__ == "__main__":
     embeddings_folder = "data/embeddings"
     queries_file_path = "queries.json"
-    frames_folder = "data/video_frames"
+    # frames_folder = "data/video_frames"
     
     # Khởi tạo các đường dẫn đến các thư mục dữ liệu
     media_info_folder = "data/media_info"
     map_keyframes_folder = "data/map_keyframes"
     objects_folder = "data/objects"
 
-    video_metadata = load_video_metadata(os.path.join(media_info_folder, "L21_V001.json"))
-    keyframes_map = load_keyframes_map(os.path.join(map_keyframes_folder, "L21_V001.csv"))
-    object_detections = load_object_detections(os.path.join(objects_folder, "001.json"))
+    # video_metadata = load_video_metadata(os.path.join(media_info_folder, "L21_V001.json"))
+    # keyframes_map = load_keyframes_map(os.path.join(map_keyframes_folder, "L21_V001.csv"))
+    # object_detections = load_object_detections(os.path.join(objects_folder, "001.json"))
 
     with open(queries_file_path, 'r', encoding='utf-8') as f:
         queries = json.load(f)
 
-    faiss_index, _ = build_faiss_index(embeddings_folder)
+    faiss_index, _, id_mapping = build_faiss_index(embeddings_folder)
     index_to_path_mapping = create_index_to_path_mapping(embeddings_folder)
     
     device = "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -46,19 +46,20 @@ if __name__ == "__main__":
                 distances, indices = search_top_k(query_embedding, faiss_index, k=5)
 
                 print(indices)
-
+                
                 print("Kết quả tìm kiếm cho Textual-KVS:")
                 for i, idx in enumerate(indices[0]):
-                    result_info = index_to_path_mapping.get(idx)
-                    print(result_info)
-                    #if result_info:
-                        #video_id = result_info["video_id"]
-                        #frame_name = result_info["frame_name"]
-                        #frame_path = os.path.join(frames_folder, video_id, f"{frame_name}.jpg")
-                        #distance = distances[0][i]
-                        #print(f"  - Top {i+1}: Video '{video_id}', Frame: '{frame_name}'")
-                        #print(f"    Đường dẫn: {frame_path}")
-                        #print(f"    Khoảng cách: {distance:.4f}")
+                    path = id_mapping[idx]
+                    distance = distances[0][i]
+                    print(f"  - Top {i+1}: {path}, Khoảng cách: {distance:.4f}")
+                    # if result_info:
+                        # video_id = result_info["video_id"]
+                        # frame_name = result_info["frame_name"]
+                        # frame_path = os.path.join(frames_folder, video_id, f"{frame_name}.jpg")
+                        # distance = distances[0][i]
+                        # print(f"  - Top {i+1}: Video '{video_id}', Frame: '{frame_name}'")
+                        # print(f"    Đường dẫn: {frame_path}")
+                        # print(f"    Khoảng cách: {distance:.4f}")
 
             # elif task_type == "qa":
             #     # Ví dụ xử lý cho QA
