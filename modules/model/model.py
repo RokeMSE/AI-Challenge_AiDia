@@ -13,8 +13,8 @@ class Clip4ClipHF(nn.Module):
     def __init__(self, model_name="openai/clip-vit-base-patch32"):
         super().__init__()
         # Load the core CLIP model and its processor from Hugging Face
-        self.clip = CLIPModel.from_pretrained(model_name)
-        self.processor = CLIPProcessor.from_pretrained(model_name)
+        self.clip = CLIPModel.from_pretrained(model_name, device_map="cuda")
+        self.processor = CLIPProcessor.from_pretrained(model_name, device_map="cuda")
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.to(self.device)
         print(f"Model '{model_name}' loaded on device: {self.device}")

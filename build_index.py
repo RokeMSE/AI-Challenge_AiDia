@@ -7,7 +7,7 @@ import faiss
 from modules.model.model import Clip4ClipHF
 
 # --- Config ---
-BATCH_SIZE = 1 # Adjust based on your GPU/CPU's VRAM
+BATCH_SIZE = 10 # Adjust based on your GPU/CPU's VRAM
 
 def process_batch(model, frame_paths):
     """Processes a batch of frames and returns their embeddings."""
@@ -81,8 +81,8 @@ def generate_embeddings_batched(model, frames_folder, embeddings_folder):
                 except Exception as e:
                     print(f"Error processing batch starting with {batch_paths[0]}: {e}")
                     # Optional: Clear CUDA cache in case of a severe error
-                    # if torch.cuda.is_available():
-                    #     torch.cuda.empty_cache()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":
