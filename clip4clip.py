@@ -1,4 +1,3 @@
-# main.py
 import numpy as np
 import os
 import json
@@ -13,7 +12,7 @@ from modules.utils.search_utils import build_faiss_index, search_top_k, create_i
 if __name__ == "__main__":
     # --- CONFIGURATION ---
     # Point these to your main data folders
-    embeddings_folder = "data/embeddings/L21_V001"
+    embeddings_folder = "data/embeddings"
     frames_folder = "data/video_frames"
     queries_file_path = "queries.json"
     

@@ -7,7 +7,7 @@ import faiss
 from modules.model.model import Clip4ClipHF
 
 # --- Config ---
-BATCH_SIZE = 2 # Adjust based on your GPU's VRAM
+BATCH_SIZE = 1 # Adjust based on your GPU/CPU's VRAM
 
 def process_batch(model, frame_paths):
     """Processes a batch of frames and returns their embeddings."""
@@ -31,7 +31,7 @@ def process_batch(model, frame_paths):
         embeddings = model.clip.get_image_features(**inputs)
         # Normalize embeddings
         embeddings /= embeddings.norm(dim=-1, keepdim=True)
-    
+
     return embeddings.cpu().detach().numpy(), [path for path, img in zip(frame_paths, images) if img]
 
 
