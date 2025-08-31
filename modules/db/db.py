@@ -100,13 +100,13 @@ class WeaviateRepository:
     
     print("Finished processing clip:", clip_name)
   
-  def upload_from_folder(self, data_root_path: str):
+  def upload_from_folder(self, data_root_path: str, batch_size: int = 100):
     all_clips = [d for d in os.listdir(DATA_ROOT) if os.path.isdir(os.path.join(DATA_ROOT, d))]
     
     id = 1
     for clip_name in all_clips:
       video_data_path = os.path.join(DATA_ROOT, clip_name)
-      repos.upload_from_npy(data_path=video_data_path, clip_id=id, clip_name=clip_name)
+      repos.upload_from_npy(data_path=video_data_path, clip_id=id, clip_name=clip_name, batch_size=100)
       id += 1
     print("\nAll videos have been processed.")
 
