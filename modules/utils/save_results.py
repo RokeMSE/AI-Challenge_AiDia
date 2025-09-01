@@ -61,3 +61,22 @@ def save_trake_results(results, query_id):
     result_dir = ensure_result_folder()
     filename = os.path.join(result_dir, f"query-{part}-{query_id}-trake.csv")
     write_trake_results(results, filename)
+
+def create_kis_result_object(video_id, frame_index):
+    return type('KISResult', (object,), {
+        'video_id': video_id, 
+        'frame_index': frame_index
+    })()
+
+def create_qa_result_object(video_id, frame_index, answer):
+    return type('QAResult', (object,), {
+        'video_id': video_id, 
+        'frame_index': frame_index, 
+        'answer': answer
+    })()
+
+def create_trake_result_object(video_id, frame_ids):
+    return type('TrakeResult', (object,), {
+        'video_id': video_id, 
+        'frame_ids': frame_ids
+    })()

@@ -2,27 +2,7 @@ import os
 import re
 from modules.db.weaviate_aidia import WeaviateRepository
 from sentence_transformers import SentenceTransformer
-from modules.utils.save_results import extract_query_info, save_kis_results, save_qa_results, save_trake_results
-
-# Tạo class động để lưu kết quả, phù hợp với định dạng của save_results.py
-def create_kis_result_object(video_id, frame_index):
-    return type('KISResult', (object,), {
-        'video_id': video_id, 
-        'frame_index': frame_index
-    })()
-
-def create_qa_result_object(video_id, frame_index, answer):
-    return type('QAResult', (object,), {
-        'video_id': video_id, 
-        'frame_index': frame_index, 
-        'answer': answer
-    })()
-
-def create_trake_result_object(video_id, frame_ids):
-    return type('TrakeResult', (object,), {
-        'video_id': video_id, 
-        'frame_ids': frame_ids
-    })()
+from modules.utils.save_results import extract_query_info, save_kis_results, save_qa_results, save_trake_results, create_kis_result_object, create_qa_result_object, create_trake_result_object
 
 if __name__ == "__main__":
     # --- CONFIGURATION ---
@@ -32,6 +12,17 @@ if __name__ == "__main__":
     number_of_results_per_query = 5
 
     weaviate_repo = WeaviateRepository()
+
+    ############################################
+    # --- DELETE DATA (If already exists) ---
+    # print("\n--- Starting Data Deletion ---")
+    # weaviate_repo.reset_database()
+    # print("Weaviate database cleared.")
+
+    ### uncomment this to upload embeddings to weaviate
+    ### NOTE: only run once to avoid duplicated data
+    # weaviate_repo.upload_from_folder(DATA_ROOT, batch_size=100)
+    ############################################
 
     # --- QUERY ---
     model = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL_NAME)
