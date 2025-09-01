@@ -1,4 +1,6 @@
 .venv
 .DS_Store
 data/
-__pycache__
+modules/db/__pycache__
+modules/model/__pycache__
+modules/utils/__pycache__

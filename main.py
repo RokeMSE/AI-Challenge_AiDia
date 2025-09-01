@@ -13,9 +13,10 @@ QUERIES_FOLDER = 'queries'
 weaviate_repo = WeaviateRepository()
 
 ############################################
-# Delete the whole database after uploading
-# Only run when you want to delete all data in Weaviate
-# weaviate_repo.delete_all()  # Uncomment to use
+# --- DELETE DATA (If already exists) ---
+# print("\n--- Starting Data Deletion ---")
+# weaviate_repo.reset_database()
+# print("Weaviate database cleared.")
 
 ### uncomment this to upload embeddings to weaviate
 ### NOTE: only run once to avoid duplicated data

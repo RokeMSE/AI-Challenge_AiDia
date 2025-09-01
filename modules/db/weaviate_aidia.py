@@ -102,3 +102,23 @@ class WeaviateRepository:
       return_metadata=wvc.MetadataQuery(distance=True) # Request distance metric
     )
     return self.__format_query_results(response)
+  
+  def reset_database(self):
+    """
+    Delete the entire ClipFrame collection and recreate an empty schema.
+    """
+    try:
+        # Get the list of existing collections (as strings)
+        existing_collections = self.__client.collections.list_all()
+
+        # If ClipFrame exists, delete it
+        if "ClipFrame" in existing_collections:
+            self.__client.collections.delete("ClipFrame")
+            print("Deleted collection ClipFrame")
+
+        # Create a new empty schema
+        self.__create_weaviate_collection()
+        print("Recreated collection ClipFrame")
+
+    except Exception as e:
+        print(f"Error while resetting database: {e}")
