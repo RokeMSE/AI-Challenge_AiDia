@@ -19,14 +19,14 @@ class WeaviateRepository:
 
   def __init__(self):
     try:
-        self.__client = weaviate.connect_to_local()
-        # Ensure the client is closed when the program exits
-        atexit.register(self.__client.close)
-        self.__create_weaviate_collection()
+      self.__client = weaviate.connect_to_local()
+      # Ensure the client is closed when the program exits
+      atexit.register(self.__client.close)
+      self.__create_weaviate_collection()
     except Exception as e:
-        print("ERROR: Could not connect to Weaviate.")
-        print("Please ensure the Docker container is running with 'docker compose up -d'")
-        raise e
+      print("ERROR: Could not connect to Weaviate.")
+      print("Please ensure the Docker container is running with 'docker compose up -d'")
+      raise e
   
   def __create_weaviate_collection(self) -> None:
     """
@@ -61,36 +61,36 @@ class WeaviateRepository:
         for file in files:
           if file.endswith(".npy"):
             try:
-                # Extract info from path
-                video_id = os.path.basename(root)
-                frame_name = os.path.splitext(file)[0]
-                
-                # Load the vector
-                vector = np.load(os.path.join(root, file)).flatten().tolist()
-                
-                properties = {
-                    "video_id": video_id,
-                    "frame_name": frame_name,
-                }
-                
-                batch.add_object(
-                    properties=properties,
-                    vector=vector
-                )
+              # Extract info from path
+              video_id = os.path.basename(root)
+              frame_name = os.path.splitext(file)[0]
+              
+              # Load the vector
+              vector = np.load(os.path.join(root, file)).flatten().tolist()
+              
+              properties = {
+                "video_id": video_id,
+                "frame_name": frame_name,
+              }
+              
+              batch.add_object(
+                properties=properties,
+                vector=vector
+              )
             except Exception as e:
-                print(f"Error processing file {file}: {e}")
+              print(f"Error processing file {file}: {e}")
     
     print("Finished importing all embeddings.")
 
   def __format_query_results(self, results) -> list[QueryResult]:
     """Formats the raw query response from Weaviate into a list of QueryResult objects."""
     return [
-        QueryResult(
-            uuid=obj.uuid,
-            video_id=obj.properties['video_id'],
-            frame_name=obj.properties['frame_name'],
-            distance=obj.metadata.distance
-        ) for obj in results.objects
+      QueryResult(
+        uuid=obj.uuid,
+        video_id=obj.properties['video_id'],
+        frame_name=obj.properties['frame_name'],
+        distance=obj.metadata.distance
+      ) for obj in results.objects
     ]
   
   def query_by_vector(self, vector: list[float], k: int = 5) -> list[QueryResult]:
@@ -99,7 +99,7 @@ class WeaviateRepository:
     response = collection.query.near_vector(
       near_vector=vector,
       limit=k,
-      return_metadata=wvc.MetadataQuery(distance=True) # Request distance metric
+      # return_metadata=wvc.MetadataQuery(distance=True) # Request distance metric but we comment it because it is not needed significantly for submission
     )
     return self.__format_query_results(response)
   
@@ -108,17 +108,17 @@ class WeaviateRepository:
     Delete the entire ClipFrame collection and recreate an empty schema.
     """
     try:
-        # Get the list of existing collections (as strings)
-        existing_collections = self.__client.collections.list_all()
+      # Get the list of existing collections (as strings)
+      existing_collections = self.__client.collections.list_all()
 
-        # If ClipFrame exists, delete it
-        if "ClipFrame" in existing_collections:
-            self.__client.collections.delete("ClipFrame")
-            print("Deleted collection ClipFrame")
+      # If ClipFrame exists, delete it
+      if "ClipFrame" in existing_collections:
+        self.__client.collections.delete("ClipFrame")
+        print("Deleted collection ClipFrame")
 
-        # Create a new empty schema
-        self.__create_weaviate_collection()
-        print("Recreated collection ClipFrame")
+      # Create a new empty schema
+      self.__create_weaviate_collection()
+      print("Recreated collection ClipFrame")
 
     except Exception as e:
-        print(f"Error while resetting database: {e}")
+      print(f"Error while resetting database: {e}")
