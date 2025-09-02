@@ -19,10 +19,9 @@ if __name__ == "__main__":
     # weaviate_repo.reset_database()
     # print("Weaviate database cleared.")
 
-    ### uncomment this to upload embeddings to weaviate
-    ### NOTE: only run once to avoid duplicated data
-    # weaviate_repo.upload_from_folder(DATA_ROOT, batch_size=100)
-    ############################################
+    # print("\n--- Starting Data Import ---")
+    # weaviate_repo.import_embeddings(DATA_ROOT)
+    # print("--- Data Import Complete ---")
 
     # --- QUERY ---
     model = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL_NAME)

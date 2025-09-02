@@ -1,6 +1,6 @@
 # modules/db/weaviate.py
 import weaviate
-import weaviate.classes.config as wvc
+import weaviate.classes as wvc
 import numpy as np
 import os
 import atexit
@@ -99,7 +99,7 @@ class WeaviateRepository:
     response = collection.query.near_vector(
       near_vector=vector,
       limit=k,
-      # return_metadata=wvc.MetadataQuery(distance=True) # Request distance metric but we comment it because it is not needed significantly for submission
+      return_metadata=wvc.query.MetadataQuery(distance=True) # Request distance metric
     )
     return self.__format_query_results(response)
   
