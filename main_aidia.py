@@ -9,7 +9,7 @@ if __name__ == "__main__":
     QUERIES_FOLDER = 'queries'
     DATA_ROOT = "/Users/dangnguyen/Desktop/AI-Challenge_AiDia/data/embeddings"
     SENTENCE_TRANSFORMER_MODEL_NAME = 'clip-ViT-B-32-multilingual-v1'
-    number_of_results_per_query = 5
+    number_of_results_per_query = 20
 
     weaviate_repo = WeaviateRepository()
 
