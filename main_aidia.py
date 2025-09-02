@@ -12,17 +12,14 @@ if __name__ == "__main__":
     number_of_results_per_query = 5
 
     weaviate_repo = WeaviateRepository()
-
-    ############################################
     # --- DELETE DATA (If already exists) ---
     # print("\n--- Starting Data Deletion ---")
     # weaviate_repo.reset_database()
     # print("Weaviate database cleared.")
-
-    ### uncomment this to upload embeddings to weaviate
-    ### NOTE: only run once to avoid duplicated data
-    # weaviate_repo.upload_from_folder(DATA_ROOT, batch_size=100)
-    ############################################
+    
+    print("\n--- Starting Data Import ---")
+    """ weaviate_repo.import_embeddings(DATA_ROOT)
+    print("--- Data Import Complete ---") """
 
     # --- QUERY ---
     model = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL_NAME)
