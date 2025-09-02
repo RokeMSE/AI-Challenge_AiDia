@@ -15,8 +15,8 @@ if __name__ == "__main__":
     # You can comment it out after the first successful run. Otherwise, RIP 
     weaviate_repo = WeaviateRepository()
     print("\n--- Starting Data Import ---")
-    weaviate_repo.import_embeddings(DATA_ROOT)
-    print("--- Data Import Complete ---")
+    """ weaviate_repo.import_embeddings(DATA_ROOT)
+    print("--- Data Import Complete ---") """
 
     # --- QUERY ---
     model = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL_NAME)
