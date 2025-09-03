@@ -7,7 +7,7 @@ from modules.utils.save_results import extract_query_info, save_kis_results, sav
 if __name__ == "__main__":
     # --- CONFIGURATION ---
     QUERIES_FOLDER = 'queries'
-    DATA_ROOT = "/Users/dangnguyen/Desktop/AI-Challenge_AiDia/data/embeddings"
+    DATA_ROOT = "D:/AIC/AI-Challenge_AiDia/data/embeddings"
     SENTENCE_TRANSFORMER_MODEL_NAME = 'clip-ViT-B-32-multilingual-v1'
     number_of_results_per_query = 5
 
@@ -52,7 +52,8 @@ if __name__ == "__main__":
         # Process each query type
         if query_type == 'kis':
             kis_results_list = []
-            res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+            # res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+            res = weaviate_repo.query_with_paraphrases(query_text, model, k=10, n_paraphrase=10)
             
             if not res:
                 print("No results found for this query.")

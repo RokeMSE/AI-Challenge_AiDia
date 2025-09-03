@@ -1,11 +1,19 @@
 # modules/db/weaviate.py
 import weaviate
-import weaviate.classes as wvc
+import weaviate.classes.config as wvc
+import weaviate.classes as wc
+import weaviate.classes.query as wvc_query
 import numpy as np
 import os
 import atexit
+import requests
+import json
 from tqdm import tqdm
 from dataclasses import dataclass
+from collections import defaultdict
+from dotenv import load_dotenv
+
+load_dotenv()
 
 @dataclass
 class QueryResult:
@@ -93,16 +101,46 @@ class WeaviateRepository:
       ) for obj in results.objects
     ]
   
+  '''
   def query_by_vector(self, vector: list[float], k: int = 5) -> list[QueryResult]:
     """Queries Weaviate for the k nearest neighbors to the given vector."""
     collection = self.__client.collections.get(self._CLASS_NAME)
     response = collection.query.near_vector(
       near_vector=vector,
       limit=k,
-      return_metadata=wvc.query.MetadataQuery(distance=True) # Request distance metric
+      #return_metadata=wvc.query.MetadataQuery(distance=True) # Request distance metric
     )
     return self.__format_query_results(response)
+  '''
   
+  def query_by_vector(self, vector: list[float], k: int = 5) -> list[QueryResult]:
+    """Queries Weaviate for the k nearest neighbors to the given vector."""
+    try:
+        # Get the collection (formerly class)
+        collection = self.__client.collections.get(self._CLASS_NAME)
+
+        # Perform the near vector query using the v4 client API
+        response = collection.query.near_vector(
+            near_vector=vector,
+            limit=k,
+            return_properties=["video_id", "frame_name"],
+            return_metadata=wvc_query.MetadataQuery(distance=True) # Use wvc_query.MetadataQuery
+        )
+
+        results = []
+        # Iterate through the objects in the response
+        for obj in response.objects:
+            uuid = str(obj.uuid) # Convert UUID object to string
+            video_id = obj.properties.get("video_id")
+            frame_name = obj.properties.get("frame_name")
+            distance = obj.metadata.distance if obj.metadata else None # Access distance from metadata
+
+            results.append(QueryResult(uuid=uuid, video_id=video_id, frame_name=frame_name, distance=distance))
+        return results
+    except Exception as e:
+        print(f"Error querying vector: {e}")
+        return []
+    
   def reset_database(self):
     """
     Delete the entire ClipFrame collection and recreate an empty schema.
@@ -122,3 +160,57 @@ class WeaviateRepository:
 
     except Exception as e:
       print(f"Error while resetting database: {e}")
+
+  def query_with_paraphrases(self, query_text: str, model, k: int = 5, n_paraphrase: int = 5):
+          """
+          Generating paraphrases with Google AI Studio
+          Query Weaviate for each vector and rerank
+          """
+          API_KEY = os.getenv("GOOGLE_API_KEY")
+          MODEL = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
+  
+          # Call Google API
+          url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={API_KEY}"
+          headers = {"Content-Type": "application/json"}
+          data = {
+              "contents": [
+                  {
+                      "parts": [
+                          {"text": f"Sinh {n_paraphrase} câu truy vấn tương đương với: '{query_text}' bằng tiếng anh."},
+                          {"text": "Chỉ trả về câu thuần túy, mỗi câu 1 dòng."},
+                          {"text": "Không format Markdown hay bất cứ ký tự đặc biệt nào ngoài chữ cái và dấu câu thông thường, không số thứ tự, không giải thích."}
+                      ]
+                  }
+              ]
+          }
+
+          response = requests.post(url, headers=headers, json=data)
+          resp_json = response.json()
+
+          print(json.dumps(resp_json, indent=2, ensure_ascii=False))
+
+          # Check for error
+          if 'error' in resp_json:
+              print(f"Google API returned an error: {resp_json['error']}")
+              return [QueryResult(uuid="error", video_id="error", frame_name=query_text, distance=0.0)] 
+
+          content_parts = resp_json['candidates'][0]['content']['parts']
+          text = "\n".join([p['text'] for p in content_parts])
+
+          # Get the paraphrases
+          paraphrases = [line.strip("-• ") for line in text.split("\n") if line.strip()]
+          paraphrases.append(query_text)
+
+          vectors = [model.encode(p).tolist() for p in paraphrases]
+          scores = defaultdict(float)
+          seen = {}
+          for v in vectors:
+              results = self.query_by_vector(v, k=k)
+              for r in results:
+                  scores[r.uuid] += 1 / (1 + r.distance)  
+                  seen[r.uuid] = r
+
+          # Rerank
+          ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+          return [seen[uuid] for uuid, _ in ranked[:k]]
+    
