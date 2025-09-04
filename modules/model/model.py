@@ -47,4 +47,4 @@ class Clip4ClipHF(nn.Module):
 
     #     return video_feature.cpu().numpy().astype('float32')
 
-    def encode_query()
+    # def encode_query() 
