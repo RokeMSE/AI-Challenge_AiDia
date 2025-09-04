@@ -162,55 +162,55 @@ class WeaviateRepository:
       print(f"Error while resetting database: {e}")
 
   def query_with_paraphrases(self, query_text: str, model, k: int = 5, n_paraphrase: int = 5):
-          """
-          Generating paraphrases with Google AI Studio
-          Query Weaviate for each vector and rerank
-          """
-          API_KEY = os.getenv("GOOGLE_API_KEY")
-          MODEL = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
-  
-          # Call Google API
-          url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={API_KEY}"
-          headers = {"Content-Type": "application/json"}
-          data = {
-              "contents": [
-                  {
-                      "parts": [
-                          {"text": f"Sinh {n_paraphrase} câu truy vấn tương đương với: '{query_text}' bằng tiếng anh."},
-                          {"text": "Chỉ trả về câu thuần túy, mỗi câu 1 dòng."},
-                          {"text": "Không format Markdown hay bất cứ ký tự đặc biệt nào ngoài chữ cái và dấu câu thông thường, không số thứ tự, không giải thích."}
-                      ]
-                  }
-              ]
-          }
+    """
+    Generating paraphrases with Google AI Studio
+    Query Weaviate for each vector and rerank
+    """
+    API_KEY = os.getenv("GOOGLE_API_KEY")
+    MODEL = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
 
-          response = requests.post(url, headers=headers, json=data)
-          resp_json = response.json()
+    # Call Google API
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    data = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": f"Sinh {n_paraphrase} câu truy vấn tương đương với: '{query_text}' bằng tiếng anh."},
+                    {"text": "Chỉ trả về câu thuần túy, mỗi câu 1 dòng."},
+                    {"text": "Không format Markdown hay bất cứ ký tự đặc biệt nào ngoài chữ cái và dấu câu thông thường, không số thứ tự, không giải thích."}
+                ]
+            }
+        ]
+    }
 
-          print(json.dumps(resp_json, indent=2, ensure_ascii=False))
+    response = requests.post(url, headers=headers, json=data)
+    resp_json = response.json()
 
-          # Check for error
-          if 'error' in resp_json:
-              print(f"Google API returned an error: {resp_json['error']}")
-              return [QueryResult(uuid="error", video_id="error", frame_name=query_text, distance=0.0)] 
+    #print(json.dumps(resp_json, indent=2, ensure_ascii=False))
 
-          content_parts = resp_json['candidates'][0]['content']['parts']
-          text = "\n".join([p['text'] for p in content_parts])
+    # Check for error
+    if 'error' in resp_json:
+        print(f"Google API returned an error: {resp_json['error']}")
+        return [QueryResult(uuid="error", video_id="error", frame_name=query_text, distance=0.0)] 
 
-          # Get the paraphrases
-          paraphrases = [line.strip("-• ") for line in text.split("\n") if line.strip()]
-          paraphrases.append(query_text)
+    content_parts = resp_json['candidates'][0]['content']['parts']
+    text = "\n".join([p['text'] for p in content_parts])
 
-          vectors = [model.encode(p).tolist() for p in paraphrases]
-          scores = defaultdict(float)
-          seen = {}
-          for v in vectors:
-              results = self.query_by_vector(v, k=k)
-              for r in results:
-                  scores[r.uuid] += 1 / (1 + r.distance)  
-                  seen[r.uuid] = r
+    # Get the paraphrases
+    paraphrases = [line.strip("-• ") for line in text.split("\n") if line.strip()]
+    paraphrases.append(query_text)
 
-          # Rerank
-          ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-          return [seen[uuid] for uuid, _ in ranked[:k]]
+    vectors = [model.encode(p).tolist() for p in paraphrases]
+    scores = defaultdict(float)
+    seen = {}
+    for v in vectors:
+        results = self.query_by_vector(v, k=k)
+        for r in results:
+            scores[r.uuid] += 1 / (1 + r.distance)  
+            seen[r.uuid] = r
+
+    # Rerank
+    ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    return [seen[uuid] for uuid, _ in ranked[:k]]
     

@@ -4,6 +4,11 @@ import os
 import clip
 import numpy as np
 import json
+import requests
+from collections import defaultdict
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def create_index_to_path_mapping(embeddings_folder):
     """
@@ -83,3 +88,42 @@ def find_best_frame_in_video(text_query, video_id, embeddings_folder, model):
     best_frame_name = os.path.splitext(frame_files[best_frame_idx])[0]
     
     return best_frame_name, similarities[best_frame_idx]
+
+def split_query_into_events(query_text: str):
+    API_KEY = os.getenv("GOOGLE_API_KEY")
+    MODEL = os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={API_KEY}"
+    headers = {"Content-Type": "application/json"}
+    
+    data = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": (
+                            f"Hãy tách query sau thành các sub-query độc lập. "
+                            f"Mỗi sub-query phải giữ nguyên ngữ cảnh chung và mô tả sự kiện đầy đủ.\n\n"
+                            f"Query gốc:\n{query_text}\n\n"
+                            f"Output: chỉ trả về các sub-query, mỗi sub-query 1 dòng, "
+                            f"không thêm số thứ tự, không giải thích, không format Markdown."
+                        )
+                    }
+                ]
+            }
+        ]
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+    resp_json = response.json()
+
+    # Debug nếu cần
+    print(json.dumps(resp_json, indent=2, ensure_ascii=False))
+
+    try:
+        text = resp_json["candidates"][0]["content"]["parts"][0]["text"]
+        subqueries = [line.strip() for line in text.split("\n") if line.strip()]
+        return subqueries
+    except Exception as e:
+        print("Error parsing response:", e)
+        return []

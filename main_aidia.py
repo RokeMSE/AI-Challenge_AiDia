@@ -1,8 +1,11 @@
 import os
 import re
+import time
+from collections import Counter
 from modules.db.weaviate_aidia import WeaviateRepository
 from sentence_transformers import SentenceTransformer
 from modules.utils.save_results import extract_query_info, save_kis_results, save_qa_results, save_trake_results, create_kis_result_object, create_qa_result_object, create_trake_result_object
+from modules.utils.search_utils import split_query_into_events
 
 if __name__ == "__main__":
     # --- CONFIGURATION ---
@@ -42,15 +45,16 @@ if __name__ == "__main__":
         with open(file_path, 'r', encoding='utf-8') as f:
             query_text = f.read().strip()
 
-        # Encode the current query
-        embedding = model.encode([query_text])
-
         print(f"\n--- Processing Query {query_id} (Type: {query_type.upper()}) ---")
         print("Query file:", filename)
         print("Query text:", query_text)
 
         # Process each query type
         if query_type == 'kis':
+            '''
+            # Encode the current query
+            embedding = model.encode([query_text])
+
             kis_results_list = []
             # res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
             res = weaviate_repo.query_with_paraphrases(query_text, model, k=10, n_paraphrase=10)
@@ -73,8 +77,12 @@ if __name__ == "__main__":
             
             # Save all collected results at once
             save_kis_results(kis_results_list, query_id=query_id)
+            '''
             
         elif query_type == 'qa':
+            # Encode the current query
+            embedding = model.encode([query_text])
+
             qa_results_list = []
             res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
             
@@ -97,27 +105,125 @@ if __name__ == "__main__":
             
             # Save all collected results at once
             save_qa_results(qa_results_list, query_id=query_id)
-            
+            '''
         elif query_type == 'trake':
-            res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
-            
-            if not res:
-                print("No results found for this query.")
+            # Split query into sub-events
+            sub = split_query_into_events(query_text)
+            event_embeddings = [model.encode([q]) for q in sub]
+
+            # Search per event
+            results_per_event = []
+            for emb in event_embeddings:
+                res = weaviate_repo.query_by_vector(vector=emb[0].tolist(), k=100)
+                results_per_event.append(res)
+
+            # Count video frequency
+            video_counts = Counter()
+            for res in results_per_event:
+                video_counts.update([r.video_id for r in res if r])
+
+            if not video_counts:
+                print("No candidate videos found across events.")
                 continue
 
-            # Assuming all results are for the same video in TRAKE
-            video_id = res[0].video_id
-            frame_ids = [r.frame_name for r in res]
-            distances = [r.distance for r in res]
+            # Get top-N candidate videos
+            top_n = 10
+            candidate_videos = [vid for vid, _ in video_counts.most_common(top_n)]
 
-            print("Video ID:", video_id)
-            print("Frame IDs:", frame_ids)
-            print("Distances:", distances)
+            all_trake_results = []
 
-            # Create and save a single TRAKE result object
-            trake_result = create_trake_result_object(video_id, frame_ids)
-            save_trake_results([trake_result], query_id=query_id)
-        
+            for candidate in candidate_videos:
+                candidate_frames = []
+                candidate_score = 0.0
+
+                # refine per event
+                for emb in event_embeddings:
+                    res = weaviate_repo.query_by_vector(vector=emb[0].tolist(), k=50)
+                    same_video = [r for r in res if r.video_id == candidate]
+                    if same_video:
+                        best = min(same_video, key=lambda r: r.distance)
+                        candidate_frames.append(best.frame_name)
+                        candidate_score += 1 / (1 + best.distance)
+
+                if candidate_frames:
+                    # sort frames
+                    try:
+                        candidate_frames = sorted(candidate_frames, key=lambda x: int(re.findall(r'\d+', x)[0]))
+                    except:
+                        candidate_frames = sorted(candidate_frames)
+
+                    print("Candidate Video:", candidate, "Score:", candidate_score)
+                    print("Frames:", candidate_frames)
+
+                    # save multiple results
+                    trake_result = create_trake_result_object(candidate, candidate_frames)
+                    all_trake_results.append(trake_result)
+
+            if all_trake_results:
+                save_trake_results(all_trake_results, query_id=query_id)
+        '''
+        elif query_type == 'trake':
+            # Split query into sub-events
+            sub = split_query_into_events(query_text)
+
+            results_per_event = []
+            for q in sub:
+                # Search per event
+                res = weaviate_repo.query_with_paraphrases(
+                    query_text=q,
+                    model=model,
+                    k=100,          
+                    n_paraphrase=7  
+                )
+                results_per_event.append(res)
+                time.sleep(15)
+
+            # Count video frequency
+            video_counts = Counter()
+            for res in results_per_event:
+                video_counts.update([r.video_id for r in res if r])
+
+            if not video_counts:
+                print("No candidate videos found across events.")
+                continue
+
+            # Get top-N candidate videos
+            top_n = 3
+            candidate_videos = [vid for vid, _ in video_counts.most_common(top_n)]
+
+            all_trake_results = []
+
+            for candidate in candidate_videos:
+                candidate_frames = []
+                candidate_score = 0.0
+
+                for q in sub:
+                    res = weaviate_repo.query_with_paraphrases(
+                        query_text=q,
+                        model=model,
+                        k=50,
+                        n_paraphrase=3
+                    )
+                    same_video = [r for r in res if r.video_id == candidate]
+                    if same_video:
+                        best = min(same_video, key=lambda r: r.distance)
+                        candidate_frames.append(best.frame_name)
+                        candidate_score += 1 / (1 + best.distance)
+
+                if candidate_frames:
+                    try:
+                        candidate_frames = sorted(candidate_frames, key=lambda x: int(re.findall(r'\d+', x)[0]))
+                    except:
+                        candidate_frames = sorted(candidate_frames)
+
+                    print("Candidate Video:", candidate, "Score:", candidate_score)
+                    print("Frames:", candidate_frames)
+
+                    trake_result = create_trake_result_object(candidate, candidate_frames)
+                    all_trake_results.append(trake_result)
+
+            if all_trake_results:
+                save_trake_results(all_trake_results, query_id=query_id)
         else:
             print(f"Unsupported query type: {query_type}")
             
