@@ -3,6 +3,20 @@ import re
 from modules.db.weaviate_aidia import WeaviateRepository
 from sentence_transformers import SentenceTransformer
 from modules.utils.save_results import extract_query_info, save_kis_results, save_qa_results, save_trake_results, create_kis_result_object, create_qa_result_object, create_trake_result_object
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+
+def translate_vi_en(text: str) -> str:
+    """
+    Dịch từ tiếng Việt sang tiếng Anh bằng EnViT5
+    """
+    # Tiền xử lý đầu vào
+    input_text = f"translate Vietnamese to English: {text}"
+    inputs = tokenizer(input_text, return_tensors="pt", padding=True)
+
+    # Sinh bản dịch
+    outputs = model.generate(**inputs, max_length=256)
+    translation = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return translation
 
 if __name__ == "__main__":
     # --- CONFIGURATION ---
@@ -24,7 +38,12 @@ if __name__ == "__main__":
     # print("--- Data Import Complete ---")
 
     # --- QUERY ---
-    model = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL_NAME)
+    # model = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL_NAME)
+    # Download tokenizer and model EnViT5
+    model_name = "VietAI/envit5-translation"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
     QUERY_TXT_FOLDER = os.path.join(os.path.dirname(__file__), QUERIES_FOLDER)
     query_files = [f for f in os.listdir(QUERY_TXT_FOLDER) if f.endswith('.txt')]
 

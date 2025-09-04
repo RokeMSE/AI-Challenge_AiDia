@@ -46,3 +46,5 @@ class Clip4ClipHF(nn.Module):
     #         video_feature /= video_feature.norm(dim=-1, keepdim=True) # Normalize
 
     #     return video_feature.cpu().numpy().astype('float32')
+
+    def encode_query()
