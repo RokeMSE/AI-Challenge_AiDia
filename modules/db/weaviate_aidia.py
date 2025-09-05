@@ -101,18 +101,6 @@ class WeaviateRepository:
       ) for obj in results.objects
     ]
   
-  '''
-  def query_by_vector(self, vector: list[float], k: int = 5) -> list[QueryResult]:
-    """Queries Weaviate for the k nearest neighbors to the given vector."""
-    collection = self.__client.collections.get(self._CLASS_NAME)
-    response = collection.query.near_vector(
-      near_vector=vector,
-      limit=k,
-      #return_metadata=wvc.query.MetadataQuery(distance=True) # Request distance metric
-    )
-    return self.__format_query_results(response)
-  '''
-  
   def query_by_vector(self, vector: list[float], k: int = 5) -> list[QueryResult]:
     """Queries Weaviate for the k nearest neighbors to the given vector."""
     try:
