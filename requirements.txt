@@ -61,3 +61,4 @@ transformers==4.56.0
 sentencepiece>=0.1.99
 torch==2.8.0
 dotenv
+ipykernel

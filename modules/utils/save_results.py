@@ -96,7 +96,7 @@ def map_keyframes(video_id, n_value):
     file_path = os.path.join(MAP_FRAME_B1 if batch == 1 else MAP_FRAME_B2, f"{video_id}.csv")
 
     df = pd.read_csv(file_path)
-    if 0 <= int(n_value) < len(df):
+    if 0 <= int(n_value) <= len(df):
         return int(df.iloc[int(n_value)-1]['frame_idx'])
     else:
         return None

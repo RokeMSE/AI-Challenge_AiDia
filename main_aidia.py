@@ -53,16 +53,10 @@ if __name__ == "__main__":
 
         # Process each query type
         if query_type == 'kis':
-            # Encode the current query
             embedding = model.encode([query_text])
-
             kis_results_list = []
             res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
-            # res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=10)
-            
-            if not res:
-                print("No results found for this query.")
-                continue
+            # res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=3)
 
             for r in res:
                 video_id = r.video_id
@@ -80,85 +74,75 @@ if __name__ == "__main__":
             save_kis_results(kis_results_list, query_id=query_id)
             
         elif query_type == 'qa':
-            # Encode the current query
             embedding = model.encode([query_text])
-
             qa_results_list = []
             res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
-            
-            if not res:
-                print("No results found for this query.")
-                continue
+            # res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=3)
 
             for r in res:
                 video_id = r.video_id
                 frame_name = r.frame_name
                 distance = r.distance
             
-                print("Video ID:", video_id)
-                print("Frame name:", frame_name)
-                print("Distance:", distance)
+                # print("Video ID:", video_id)
+                # print("Frame name:", frame_name)
+                # print("Distance:", distance)
+                answer_text = f'Waiting for updating...'
 
-                # Create and collect Q&A result (video_id, frame_index, "answer")
-                answer_text = f"Answer for {query_text} (Placeholder)"
                 frame_index = map_keyframes(video_id, frame_name)
                 qa_results_list.append(create_qa_result_object(video_id, frame_index, answer_text))
 
-            # Save all collected results at once
             save_qa_results(qa_results_list, query_id=query_id)
 
-        # elif query_type == 'trake':
-        #     # Split query into sub-events
-        #     sub = split_query_into_events(query_text)
+        elif query_type == 'trake':
+            # Split query into sub-events
+            sub = split_query_into_events(query_text)
 
-        #     results_per_event = []
-        #     for q in sub:
-        #         # Search per event
-        #         res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
-        #         # res = weaviate_repo.query_with_paraphrases(query_text=q, model=model, k=number_of_results_per_query, n_paraphrase=3)
-        #         results_per_event.append(res)
-        #         # time.sleep(5) # To avoid overwhelming the server
+            results_per_event = []
+            for q in sub:
+                # Search per event
+                res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+                results_per_event.append(res)
 
-        #     # Count video frequency
-        #     video_counts = Counter()
-        #     for res in results_per_event:
-        #         video_counts.update([r.video_id for r in res if r])
+            # Count video frequency
+            video_counts = Counter()
+            for res in results_per_event:
+                video_counts.update([r.video_id for r in res if r])
 
-        #     if not video_counts:
-        #         print("No candidate videos found across events.")
-        #         continue
+            if not video_counts:
+                print("No candidate videos found across events.")
+                continue
 
-        #     candidate_videos = [vid for vid, _ in video_counts.most_common(number_of_results_per_query)]
+            candidate_videos = [vid for vid, _ in video_counts.most_common(number_of_results_per_query)]
 
-        #     all_trake_results = []
+            all_trake_results = []
 
-        #     for candidate in candidate_videos:
-        #         candidate_frames = []
-        #         candidate_score = 0.0
+            for candidate in candidate_videos:
+                candidate_frames = []
+                candidate_score = 0.0
 
-        #         for q in sub:
-        #             res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
-        #             # res = weaviate_repo.query_with_paraphrases(query_text=q, model=model, k=number_of_results_per_query, n_paraphrase=3)
-        #             same_video = [r for r in res if r.video_id == candidate]
-        #             if same_video:
-        #                 best = min(same_video, key=lambda r: r.distance)
-        #                 candidate_frames.append(best.frame_name)
-        #                 candidate_score += 1 / (1 + best.distance)
+                for q in sub:
+                    res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+                    same_video = [r for r in res if r.video_id == candidate]
+                    if same_video:
+                        best = min(same_video, key=lambda r: r.distance)
+                        candidate_frames.append(best.frame_name)
+                        candidate_score += 1 / (1 + best.distance)
 
-        #         if candidate_frames:
-        #             try:
-        #                 candidate_frames = sorted(candidate_frames, key=lambda x: int(re.findall(r'\d+', x)[0]))
-        #             except:
-        #                 candidate_frames = sorted(candidate_frames)
+                if candidate_frames:
+                    try:
+                        candidate_frames = sorted(candidate_frames, key=lambda x: int(re.findall(r'\d+', x)[0]))
+                    except:
+                        candidate_frames = sorted(candidate_frames)
 
-        #             print("Candidate Video:", candidate, "Score:", candidate_score)
-        #             print("Frames:", candidate_frames)
+                    print("Candidate Video:", candidate, "Score:", candidate_score)
+                    print("Frames:", candidate_frames)
                     
-        #             candidate_frames = [map_keyframes(candidate, frame) for frame in candidate_frames]
-        #             trake_result = create_trake_result_object(candidate, candidate_frames)
-        #             all_trake_results.append(trake_result)
-        #     if all_trake_results:
-        #         save_trake_results(all_trake_results, query_id=query_id)
+                    candidate_frames = [map_keyframes(candidate, frame) for frame in candidate_frames]
+                    trake_result = create_trake_result_object(candidate, candidate_frames)
+                    all_trake_results.append(trake_result)
+            if all_trake_results:
+                save_trake_results(all_trake_results, query_id=query_id)
 
         else:
             print(f"Unsupported query type: {query_type}")
