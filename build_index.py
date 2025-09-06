@@ -7,7 +7,7 @@ import faiss
 from modules.model.model import Clip4ClipHF
 
 # --- Config ---
-BATCH_SIZE = 2 # Adjust based on your GPU's VRAM
+BATCH_SIZE = 500 # Adjust based on your GPU's VRAM and PC's RAM (I tested and it's around 4.2GB VRAM and 11GB RAM for 500 frames with CLIP ViT-B/32)
 
 def process_batch(model, frame_paths):
     """Processes a batch of frames and returns their embeddings."""
@@ -64,7 +64,7 @@ def generate_embeddings_batched(model, frames_folder, embeddings_folder):
             
             # Process the collected frames in batches
             for i in range(0, len(frame_files_to_process), BATCH_SIZE):
-                batch_paths = frame_files_to_process[i:i + BATCH_SIZE]
+                batch_paths = frame_files_to_process[i:i + BATCH_SIZE] # BATCH_SIZE: the amount of frames to process at once (EX: if BATCH_SIZE=32, it will process 32 frames at once)
                 
                 try:
                     embeddings, processed_paths = process_batch(model, batch_paths)
@@ -86,8 +86,8 @@ def generate_embeddings_batched(model, frames_folder, embeddings_folder):
 
 
 if __name__ == "__main__":
-    frames_folder = "data/video_frames" 
-    embeddings_folder = "data/embeddings"
+    frames_folder = "C:/Users/rokeM/Downloads/data/video_frames" 
+    embeddings_folder = "C:/Users/rokeM/Downloads/data/embeddings"
 
     print("Loading CLIP model...")
     # Ensure model is on the correct device (GPU is highly recommended)
