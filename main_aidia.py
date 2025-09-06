@@ -6,20 +6,16 @@ from modules.db.weaviate_aidia import WeaviateRepository
 from sentence_transformers import SentenceTransformer
 from modules.utils.save_results import extract_query_info, save_kis_results, save_qa_results, save_trake_results, create_kis_result_object, create_qa_result_object, create_trake_result_object, map_keyframes
 from modules.utils.search_utils import split_query_into_events
-from modules.utils.qa_system import QASystem
 
 if __name__ == "__main__":
     # --- CONFIGURATION ---
     QUERIES_FOLDER = 'queries'
     DATA_ROOT_BATCH1 = "/Users/dangnguyen/Desktop/AI-Challenge_AiDia/data/embeddings/embeddings_b1"
     DATA_ROOT_BATCH2 = "/Users/dangnguyen/Desktop/AI-Challenge_AiDia/data/embeddings/embeddings_b2"
-    DETECTION_DATA_FOLDER_BATCH1 = "C:/Users/rokeM/Downloads/data/objects/objects_b1"
-    DETECTION_DATA_FOLDER_BATCH2 = "C:/Users/rokeM/Downloads/data/objects/objects_b2"
     SENTENCE_TRANSFORMER_MODEL_NAME = 'clip-ViT-B-32-multilingual-v1'
     number_of_results_per_query = 20
 
     weaviate_repo = WeaviateRepository()
-    qa_system = QASystem(weaviate_repo, DETECTION_DATA_FOLDER_BATCH1)
 
     ############################################
     # --- DELETE DATA (If already exists) ---
@@ -79,18 +75,22 @@ if __name__ == "__main__":
             
         elif query_type == 'qa':
             embedding = model.encode([query_text])
-            qa_results_tuples = qa_system.answer_question(query_text, k=number_of_results_per_query)
-            
             qa_results_list = []
-            for video_id, frame_index, answer_text in qa_results_tuples:
-                if frame_index is not None:  # Only include valid frame indices
-                    qa_results_list.append(create_qa_result_object(video_id, frame_index, answer_text))
-                    
-                    # Print some debug info for the top results
-                    if len(qa_results_list) <= 3:
-                        print(f"  Video: {video_id}, Frame: {frame_index}")
-                        print(f"  Answer: {answer_text}")
-                        print("  ---")
+            res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query) # Now when i check by eyes, it is better
+            # res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=3)
+
+            for r in res:
+                video_id = r.video_id
+                frame_name = r.frame_name
+                distance = r.distance
+
+                # print("Video ID:", video_id)
+                # print("Frame name:", frame_name)
+                # print("Distance:", distance)
+                answer_text = "Waiting for sis Quyen he he"
+
+                frame_index = map_keyframes(video_id, frame_name)
+                qa_results_list.append(create_qa_result_object(video_id, frame_index, answer_text))
 
             save_qa_results(qa_results_list, query_id=query_id)
 
