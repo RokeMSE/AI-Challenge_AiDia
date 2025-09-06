@@ -55,8 +55,8 @@ if __name__ == "__main__":
         if query_type == 'kis':
             embedding = model.encode([query_text])
             kis_results_list = []
-            res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
-            # res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=3)
+            # res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+            res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=3)
 
             for r in res:
                 video_id = r.video_id
@@ -76,18 +76,18 @@ if __name__ == "__main__":
         elif query_type == 'qa':
             embedding = model.encode([query_text])
             qa_results_list = []
-            res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+            res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query) # Now when i check by eyes, it is better
             # res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=3)
 
             for r in res:
                 video_id = r.video_id
                 frame_name = r.frame_name
                 distance = r.distance
-            
+
                 # print("Video ID:", video_id)
                 # print("Frame name:", frame_name)
                 # print("Distance:", distance)
-                answer_text = f'Waiting for updating...'
+                answer_text = "Waiting for sis Quyen he he"
 
                 frame_index = map_keyframes(video_id, frame_name)
                 qa_results_list.append(create_qa_result_object(video_id, frame_index, answer_text))
@@ -101,7 +101,9 @@ if __name__ == "__main__":
             results_per_event = []
             for q in sub:
                 # Search per event
-                res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+                embedding = model.encode([q])
+                res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query) # Find the best video should use this to reduce time consuming
+                # res = weaviate_repo.query_with_paraphrases(q, model, k=number_of_results_per_query, n_paraphrase=3)
                 results_per_event.append(res)
 
             # Count video frequency
@@ -122,7 +124,9 @@ if __name__ == "__main__":
                 candidate_score = 0.0
 
                 for q in sub:
-                    res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+                    embedding = model.encode([q])
+                    # res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+                    res = weaviate_repo.query_with_paraphrases(q, model, k=number_of_results_per_query, n_paraphrase=3) # Use paraphrase to find more relevant frames, it increase the exactness
                     same_video = [r for r in res if r.video_id == candidate]
                     if same_video:
                         best = min(same_video, key=lambda r: r.distance)
