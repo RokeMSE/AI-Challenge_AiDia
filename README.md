@@ -1,7 +1,32 @@
 # AI CHALLENGE: AiĐia
 - Framework dựa trên model CLIP4clip
 
-# About `modules/db`
+## Dir format for data:
+- Để sử dụng tool, set format của data như sau (hoặc là reformat lại code trong để đọc/scan file theo kiểu khác)
+```
+data/
+  ├── video_frames/           # Original video frames (Download from the BTC Excel file)`
+  │   ├── L01_V001/
+  │   │   ├── 001.jpg
+  │   │   ├── 002.jpg
+  │   │   └── ...
+  │   └── L01_V002/
+  ├── embeddings/            # CLIP embeddings (generated)
+  │   ├── embeddings_L01_V001/
+  │   │   ├── 001.npy
+  │   │   ├── 002.npy
+  │   │   └── ...
+  │   └── embeddings_L01_V002/
+  └── object/     # Object detection JSON files (Download from the BTC Excel file)
+      ├── L01_V001/
+      │   ├── 001.json        # == 001.jpg
+      │   ├── 002.json        # == 002.jpg
+      │   └── ...
+      └── L01_V002/
+```
+**NOTICE: FRAME_NAME == OBJECT_FRAME_NAME**
+
+## About `modules/db`:
 - Sử dụng weaviate vector database được deploy trên docker
 - Trong file `db.py` có cung cấp một class hỗ trợ kết nối với weaviate và thực hiện thao tác: tạo collection, insert, search.
 - Để chạy:
@@ -30,5 +55,16 @@ res = repos.query_by_vector(np.load(os.path.join(DATA_ROOT, "L21_V002", '023.npy
 print(res)
 ```
 
+## About `qa_processor.py`:
+- Xài nếu file Json có format flat, để ánh xạ vs file keyframe tương ứng (xài của BTC thì skip)
+```
+pythonfrom modules.utils.qa_processor.py import organize_detection_data
+organize_detection_data(
+    source_folder={sorce path},
+    target_folder={source path},
+    video_frames_folder={source path}
+)
+```
 
-## NOTE: LÀM ƠN XÀI CHECKPOINT ĐỂ GIỮ WEIGHT
+## About `qa_system.py`:
+- Đảm bảo là đống JSON object files ánh xạ vs video_id/frame_name.json

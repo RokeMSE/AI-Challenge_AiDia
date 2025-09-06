@@ -5,3 +5,4 @@ modules/db/__pycache__
 modules/model/__pycache__
 modules/utils/__pycache__
 .env
+*.pyc
