@@ -6,14 +6,14 @@ import pandas as pd
 MAP_FRAME_B1 = "/Users/dangnguyen/Desktop/AI-Challenge_AiDia/data/map_keyframes/map_keyframes_b1"
 MAP_FRAME_B2 = "/Users/dangnguyen/Desktop/AI-Challenge_AiDia/data/map_keyframes/map_keyframes_b2"
 
-part = "p1"
+part = "p2"
 
 def extract_query_info(query_filename):
     """
     Extract query ID and type from the query filename.
-    Example: query-p1-15-qa.txt -> (15, 'qa')
+    Example: query-p2-15-qa.txt -> (15, 'qa')
     """
-    pattern = r'query-p1-(\d+)-([a-z]+)\.txt'
+    pattern = r'query-p2-(\d+)-([a-z]+)\.txt'
     match = re.match(pattern, query_filename)
     if match:
         query_id = int(match.group(1))

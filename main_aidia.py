@@ -13,7 +13,7 @@ if __name__ == "__main__":
     DATA_ROOT_BATCH1 = "/Users/dangnguyen/Desktop/AI-Challenge_AiDia/data/embeddings/embeddings_b1"
     DATA_ROOT_BATCH2 = "/Users/dangnguyen/Desktop/AI-Challenge_AiDia/data/embeddings/embeddings_b2"
     SENTENCE_TRANSFORMER_MODEL_NAME = 'clip-ViT-B-32-multilingual-v1'
-    number_of_results_per_query = 20
+    number_of_results_per_query = 100
 
     weaviate_repo = WeaviateRepository()
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
             embedding = model.encode([query_text])
             kis_results_list = []
             # res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
-            res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=3)
+            res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=10)
 
             for r in res:
                 video_id = r.video_id
@@ -76,8 +76,8 @@ if __name__ == "__main__":
         elif query_type == 'qa':
             embedding = model.encode([query_text])
             qa_results_list = []
-            res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query) # Now when i check by eyes, it is better
-            # res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=3)
+            # res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query) # Now when i check by eyes, it is better
+            res = weaviate_repo.query_with_paraphrases(query_text, model, k=number_of_results_per_query, n_paraphrase=5)
 
             for r in res:
                 video_id = r.video_id
@@ -87,7 +87,7 @@ if __name__ == "__main__":
                 # print("Video ID:", video_id)
                 # print("Frame name:", frame_name)
                 # print("Distance:", distance)
-                answer_text = "Waiting for sis Quyen he he"
+                answer_text = "6"
 
                 frame_index = map_keyframes(video_id, frame_name)
                 qa_results_list.append(create_qa_result_object(video_id, frame_index, answer_text))
@@ -103,7 +103,7 @@ if __name__ == "__main__":
                 # Search per event
                 embedding = model.encode([q])
                 res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query) # Find the best video should use this to reduce time consuming
-                # res = weaviate_repo.query_with_paraphrases(q, model, k=number_of_results_per_query, n_paraphrase=3)
+                # res = weaviate_repo.query_with_paraphrases(q, model, k=number_of_results_per_query, n_paraphrase=5)
                 results_per_event.append(res)
 
             # Count video frequency
@@ -125,8 +125,8 @@ if __name__ == "__main__":
 
                 for q in sub:
                     embedding = model.encode([q])
-                    # res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
-                    res = weaviate_repo.query_with_paraphrases(q, model, k=number_of_results_per_query, n_paraphrase=3) # Use paraphrase to find more relevant frames, it increase the exactness
+                    res = weaviate_repo.query_by_vector(vector=embedding[0].tolist(), k=number_of_results_per_query)
+                    # res = weaviate_repo.query_with_paraphrases(q, model, k=number_of_results_per_query, n_paraphrase=5) # Use paraphrase to find more relevant frames, it increase the exactness
                     same_video = [r for r in res if r.video_id == candidate]
                     if same_video:
                         best = min(same_video, key=lambda r: r.distance)
